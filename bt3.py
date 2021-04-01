@@ -40,6 +40,7 @@ import serial
 import serial.tools.list_ports
 
 from termview import TermView
+from preset import PresetGUI
 from support import *
 
 
@@ -55,7 +56,7 @@ class Terminal(object):
                     'flow': ['hardware', 'software', 'None']}
 
     self.settings = {'device': '',
-                     'speed': 38400,
+                     'speed': 115200,
                      'databits': 8,
                      'parity': 'N',
                      'stopbits': 1,
@@ -66,7 +67,7 @@ class Terminal(object):
       self.options['device'] = list([item[0] for item in devices])
       self.settings['device'] = self.options['device'][0]
 
-    self.sum_type = 'mod'      # checksum type
+    self.sum_type = ''         # checksum type
     self.echo_enable = True    # enable local echo
     self.lf_enable = False     # add line feed
     self.cr_enable = False     # add carriage return
@@ -83,7 +84,7 @@ class Terminal(object):
       cnt = self._serial.inWaiting()
       if cnt:
         self.rxQ.put(self._serial.read(cnt))
-      time.sleep(0.01)
+      time.sleep(0.02)
 
     self.connected = False
 
@@ -153,6 +154,11 @@ class TermPresenter(object):
     self.term = term
     self.view = view
     self.history = EntryHistory()
+    self.pv = None
+
+    self.rep_active =  False
+    self.time_active = False
+    self.line_bytes = b''
 
     # set the initial view state
     view.view_var.set('va_hex')
@@ -165,6 +171,8 @@ class TermPresenter(object):
       view.toggle_mod.set(True)
     elif self.term.sum_type == 'xor':
       view.toggle_xor.set(True)
+
+    view.toggle_rep.set(False)
 
     view.cfg['port'].config(values=term.options['device'])
     view.port_set.set(term.settings['device'])
@@ -204,14 +212,29 @@ class TermPresenter(object):
     self.view.put_line('\n#STATUS: %s\n' % status, 'foreground_grn')
 
 
+  def part(self, a, tag):
+    q = a.partition(b'\n')
+    while q[1] == b'\n':
+      try:
+        line = q[0].decode('ascii', errors='ignore')
+        if self.time_active:
+          self.view.put_line("%s %s\n" % (get_timecode(), line), tag)
+        else:
+          self.view.put_line("%s\n" % line, tag)
+      except UnicodeDecodeError as E:
+        self.on_status(str(E))
+      a = q[2]
+      q = a.partition(b'\n')
+
+    return a
+
+
   def put_line(self, bytes_val, tag):
     if self.view.view_var.get() == 'va_hex':
       self.view.put_line(hex_dump(bytes_val), tag)
     else:
-      try:
-        self.view.put_line(bytes_val.decode('ascii'), tag)
-      except UnicodeDecodeError as E:
-        self.on_status(str(E))
+      a = self.line_bytes + bytes_val
+      self.line_bytes = self.part(a, tag)
 
 
   def on_update(self):
@@ -292,6 +315,12 @@ class TermPresenter(object):
         self.term.sum_type = None
 
 
+  def _repeater(self):
+    while self.rep_active:
+      self.term.talk(bytes(self.history.history[-1], 'ascii').decode('unicode_escape'))
+      time.sleep(1)
+
+
   def on_xor(self, enable):
     if self.active:
       if enable:
@@ -303,6 +332,33 @@ class TermPresenter(object):
         self.term.sum_type = None
 
 
+  def on_rep(self, enable):
+    if self.active:
+      if enable:
+        self.rep_thd = threading.Thread(target=self._repeater)
+        self.rep_thd.setDaemon(True)
+        self.rep_active =  True
+        self.rep_thd.start()
+      else:
+        self.rep_active = False
+        self.rep_thd.join()
+
+
+  def on_time(self, enable):
+    self.time_active = enable
+
+
+  def on_clr(self):
+    self.view.output_text.delete(1.0, tk.END)
+
+  def on_cmd(self):
+    self.pv = PresetGUI()
+    self.pv.set_callback(self.on_entry)
+
+
+
+
+
 
 class TermInteractor(object):
   def __init__(self):
@@ -311,6 +367,10 @@ class TermInteractor(object):
   def install(self, presenter, view):
     self.presenter = presenter
     self.view = view
+
+    # buttons
+    view.clr_btn.config(command=self.on_clr)
+    view.cmd_btn.config(command=self.on_cmd)
 
     # key bindings
     view.entry.bind('<Key-Return>', self.on_enter)
@@ -325,6 +385,8 @@ class TermInteractor(object):
     view.toggle_open.trace('w', self.on_open)
     view.toggle_mod.trace('w', self.on_mod)
     view.toggle_xor.trace('w', self.on_xor)
+    view.toggle_rep.trace('w', self.on_rep)
+    view.toggle_time.trace('w', self.on_time)
 
     # start update loop
     self.on_update()
@@ -332,7 +394,7 @@ class TermInteractor(object):
 
   def on_update(self):
     self.presenter.on_update()
-    self.view.after(1, self.on_update)
+    self.view.after(10, self.on_update)
 
   def on_enter(self, *args):
     self.presenter.on_entry(self.view.entry.get())
@@ -364,6 +426,18 @@ class TermInteractor(object):
 
   def on_xor(self, *args):
     self.presenter.on_xor(self.view.toggle_xor.get())
+
+  def on_rep(self, *args):
+    self.presenter.on_rep(self.view.toggle_rep.get())
+
+  def on_time(self, *args):
+    self.presenter.on_time(self.view.toggle_time.get())
+
+  def on_clr(self, *args):
+    self.presenter.on_clr()
+
+  def on_cmd(self, *args):
+    self.presenter.on_cmd()
 
 
 def main():

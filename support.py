@@ -17,7 +17,7 @@
 #  LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
 #  FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
 #  IN THE SOFTWARE.
-
+import time
 
 class Observable(object):
   """Observable - An observable data type.
@@ -84,6 +84,13 @@ class EntryHistory(object):
       self.index += 1
     return self.history[self.index]
 
+  def last(self):
+    if self.index > 0:
+      return self.history[-1]
+    else:
+      return ''
+
+
 
 def achr(n):
   # return chr(n) if displayable ascii, '.' otherwise.
@@ -121,4 +128,10 @@ def sum_xor(bytes_val):
   for b in bytes_val:
     x = x ^ b
   return x
+
+
+def get_timecode():
+  t = time.gmtime()
+  return '%04d%02d%02dT%02d%02d%02dZ' % (t.tm_year, t.tm_mon, t.tm_mday, t.tm_hour, t.tm_min, t.tm_sec)
+
 

@@ -48,6 +48,8 @@ class TermView(ttk.tkinter.Tk):
     self.toggle_open = tk.BooleanVar()
     self.toggle_mod = tk.BooleanVar()
     self.toggle_xor = tk.BooleanVar()
+    self.toggle_rep = tk.BooleanVar()
+    self.toggle_time = tk.BooleanVar()
     self.port_set = tk.StringVar()
     self.baud_set = tk.IntVar()
     self.bits_set = tk.IntVar()
@@ -57,20 +59,33 @@ class TermView(ttk.tkinter.Tk):
     # Toolbar
     self.toolbar = ttk.Frame(self)
 
-    self.open_icon = ImageTk.PhotoImage(Image.open('open.png'))
+    self.open_ico = ImageTk.PhotoImage(Image.open('open.png'))
     self.open_btn = tk.Checkbutton(self.toolbar, indicatoron=0,
                                      overrelief=tk.GROOVE, offrelief=tk.FLAT,
                                      width=32, height=32,
-                                     image=self.open_icon,
+                                     image=self.open_ico,
                                      variable=self.toggle_open)
+
+    self.clr_ico = ImageTk.PhotoImage(Image.open('clr.png'))
+    self.clr_btn = tk.Button(self.toolbar, overrelief=tk.GROOVE, relief=tk.FLAT,
+                             width=32, height=32,
+                             image=self.clr_ico)
+
+    self.cmd_ico = ImageTk.PhotoImage(Image.open('cmd.png'))
+    self.cmd_btn = tk.Button(self.toolbar, overrelief=tk.GROOVE, relief=tk.FLAT,
+                             width=32, height=32,
+                             image=self.cmd_ico)
+
 
     self.btn = ({'img': ImageTk.PhotoImage(Image.open('ascii.png')), 'var': self.view_var,    'val': 'va_asc', },
                 {'img': ImageTk.PhotoImage(Image.open('hex.png')),   'var': self.view_var,    'val': 'va_hex', },
+                {'img': ImageTk.PhotoImage(Image.open('rep.png')),   'var': self.toggle_rep,                   },
                 {'img': ImageTk.PhotoImage(Image.open('xor.png')),   'var': self.toggle_xor,                   },
                 {'img': ImageTk.PhotoImage(Image.open('mod.png')),   'var': self.toggle_mod,                   },
                 {'img': ImageTk.PhotoImage(Image.open('echo.png')),  'var': self.toggle_echo,                  },
                 {'img': ImageTk.PhotoImage(Image.open('lf.png')),    'var': self.toggle_lf,                    },
-                {'img': ImageTk.PhotoImage(Image.open('cr.png')),    'var': self.toggle_cr,                    },)
+                {'img': ImageTk.PhotoImage(Image.open('cr.png')),    'var': self.toggle_cr,                    },
+                {'img': ImageTk.PhotoImage(Image.open('time.png')),  'var': self.toggle_time,                  })
 
     for b in self.btn:
       if 'cmd' in b:
@@ -98,6 +113,9 @@ class TermView(ttk.tkinter.Tk):
       wgt.pack(side=tk.RIGHT, padx=2, pady=2)
 
     self.open_btn.pack(side=tk.LEFT, padx=2, pady=2)
+    self.clr_btn.pack(side=tk.LEFT, padx=2, pady=2)
+    self.cmd_btn.pack(side=tk.LEFT, padx=2, pady=2)
+
 
     self.cfg = {'port': ttk.Combobox(self.toolbar, textvariable=self.port_set, values=[], width=8),
                 'baud': ttk.Combobox(self.toolbar, textvariable=self.baud_set, values=[], width=8),
@@ -122,7 +140,7 @@ class TermView(ttk.tkinter.Tk):
     output_scroll.pack(side=tk.RIGHT, fill=tk.Y, padx=2)
 
     # create a terminal window
-    self.output_text = tk.Text(output_frame, width=80, height=24, takefocus=0, font=text_font)
+    self.output_text = tk.Text(output_frame, width=130, height=24, takefocus=0, font=text_font)
     self.output_text.pack(side=tk.TOP, fill=tk.Y, expand=1)
 
     # create color tags
